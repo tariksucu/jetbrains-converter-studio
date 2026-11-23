@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+
+# Cancel in-progress runs for the same branch/PR.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The IntelliJ Platform 2026.2+ builds with Java 25.
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # The plugin descriptor, the project's configuration and the plugin's structure.
+      - name: Lint
+        run: ./gradlew verifyPluginProjectConfiguration verifyPluginStructure
+
+      # Unit tests and IntelliJ Platform tests; the tests that need FFmpeg, LibreOffice and the
+      # other programs are skipped when the runner does not have them. No network, no API key.
+      - name: Run tests
+        run: ./gradlew test
+
+      - name: Build the plugin
+        run: ./gradlew buildPlugin
+
+      - name: Upload the plugin
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugin
+          path: build/distributions/*.zip

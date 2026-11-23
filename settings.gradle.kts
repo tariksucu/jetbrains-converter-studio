@@ -1,0 +1,25 @@
+import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
+
+rootProject.name = "jetbrains-converter-studio"
+
+pluginManagement {
+    plugins {
+        id("org.jetbrains.kotlin.jvm") version "2.4.21"
+    }
+}
+
+plugins {
+    // Finds a JDK 25 for the toolchain when none is installed (CI and contributors).
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+    id("org.jetbrains.intellij.platform.settings") version "2.20.1"
+}
+
+@Suppress("UnstableApiUsage")
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        intellijPlatform {
+            defaultRepositories()
+        }
+    }
+}

@@ -1,0 +1,70 @@
+<idea-plugin url="https://converter.studio">
+    <id>studio.converter.ide</id>
+    <name>Converter Studio</name>
+    <vendor url="https://converter.studio" email="support@converter.studio">Converter Studio</vendor>
+
+    <description><![CDATA[
+<p>Convert files from the Project view or an editor tab: images, video, audio, documents, slides,
+spreadsheets, data and subtitles. Conversions run on your computer first.</p>
+
+<p>Right-click one or more files, choose <b>Convert with Converter Studio…</b>, pick a format, and the
+result is saved next to the original. A taken name becomes <code>photo (2).jpg</code>; nothing is
+overwritten. Progress shows in the status bar with Cancel, and a notification offers Open and Show in
+folder.</p>
+
+<h3>Where each conversion runs</h3>
+<ul>
+  <li><b>On this computer</b> (the default): with the plugin's own code (JSON to CSV and back, JSON or
+  CSV to YAML, SRT and VTT subtitles, PNG, JPG, BMP, GIF and TIFF images) and with programs already
+  installed: FFmpeg (video and audio), LibreOffice (Office files to and from PDF), Pandoc (Markdown,
+  HTML, DOCX, EPUB), ImageMagick (WebP, AVIF, HEIC, ICO), Ghostscript (smaller PDFs) and Tesseract
+  (text recognition). The dialog names the program that will do each conversion. The file does not
+  leave your computer.</li>
+  <li><b>Converter Studio app</b> (optional, off by default): hands the files to
+  <a href="https://converter.studio">Converter Studio</a> for desktop, which also converts on your
+  computer. The app opens with the files and the format chosen; you press Convert there.</li>
+  <li><b>Cloud (uses credits)</b> (only when you choose it): uploads the file to converter.studio over
+  HTTPS, for conversions your computer cannot do, such as RAW photos, e-books and fonts. It needs a
+  free account and an API key; most image and document conversions cost 1 credit
+  (<a href="https://converter.studio/pricing">pricing</a>).</li>
+</ul>
+<p>A local conversion that fails never moves to the cloud by itself: the notification offers
+<b>Try in the cloud (uses credits)</b>.</p>
+
+<h3>Privacy</h3>
+<p>No telemetry. Local conversions stay on your computer. A cloud conversion sends the file, and your
+API key, only to the API address in the settings; the upload is deleted after the conversion and the
+result after 6 hours. The key is kept in the IDE's password safe, never in settings files.
+<a href="https://converter.studio/privacy">Privacy policy</a>.</p>
+
+<p>Settings: <b>Settings | Tools | Converter Studio</b>. Source code and issues:
+<a href="https://github.com/tariksucu/jetbrains-converter-studio">GitHub</a>.</p>
+]]></description>
+
+    <change-notes><![CDATA[
+<p>1.0.0: first release. Convert files on this computer (built-in code, FFmpeg, LibreOffice, Pandoc,
+ImageMagick, Ghostscript, Tesseract), hand them to the Converter Studio desktop app, or convert them in
+the cloud with an API key.</p>
+]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationConfigurable
+                parentId="tools"
+                id="studio.converter.ide.settings"
+                instance="studio.converter.ide.settings.ConverterStudioConfigurable"
+                displayName="Converter Studio"/>
+        <notificationGroup id="Converter Studio" displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <action id="studio.converter.ide.Convert"
+                class="studio.converter.ide.actions.ConvertAction"
+                text="Convert with Converter Studio…"
+                description="Convert the selected files to another format, on this computer first">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+            <add-to-group group-id="EditorTabPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>
