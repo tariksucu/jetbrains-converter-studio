@@ -5,11 +5,12 @@ package studio.converter.ide.core
  * and the plugin's data conversions (JSON to CSV or YAML) are read with this.
  *
  * Objects become [Map]s (keys in document order), arrays [List]s, numbers [Long] when they are
- * whole and fit, otherwise [Double].
+ * whole and fit, otherwise [Double]; with `keepNumberText`, every number is a [JsonNumber] holding
+ * its text, so that no digit is lost (the data conversions read JSON so).
  */
 object Json {
     /** Parses a whole JSON document. */
-    fun parse(text: String): Any? = Parser(text).document()
+    fun parse(text: String, keepNumberText: Boolean = false): Any? = Parser(text, keepNumberText).document()
 
     /** Writes a value (maps, iterables, strings, numbers, booleans, null) as compact JSON. */
     fun write(value: Any?): String = StringBuilder().also { write(it, value, null, 0) }.toString()
@@ -25,6 +26,7 @@ object Json {
             null -> out.append("null")
             is String -> quote(out, value)
             is Boolean -> out.append(value)
+            is JsonNumber -> out.append(value.text)
             is Double, is Float -> {
                 val d = (value as Number).toDouble()
                 require(d.isFinite()) { "JSON has no NaN or infinity" }
@@ -83,7 +85,9 @@ object Json {
                 c == '\n' -> out.append("\\n")
                 c == '\r' -> out.append("\\r")
                 c == '\t' -> out.append("\\t")
-                c < ' ' || c == ' ' || c == ' ' -> out.append(String.format("\\u%04x", c.code))
+                c == '\b' -> out.append("\\b")
+                c.code == 0x0C -> out.append("\\f")
+                c < ' ' -> out.append(String.format("\\u%04x", c.code))
                 else -> out.append(c)
             }
         }
@@ -94,7 +98,10 @@ object Json {
 /** A document that is not JSON, or JSON of another shape than expected. */
 class JsonException(message: String) : RuntimeException(message)
 
-private class Parser(private val text: String) {
+/** A JSON number as the file writes it: its text is kept, so no digit is lost or changed. */
+data class JsonNumber(val text: String)
+
+private class Parser(private val text: String, private val keepNumberText: Boolean) {
     private var at = 0
 
     fun document(): Any? {
@@ -206,7 +213,7 @@ private class Parser(private val text: String) {
         }
     }
 
-    private fun number(): Number {
+    private fun number(): Any {
         val start = at
         if (peek() == '-') at++
         while (at < text.length && text[at] in '0'..'9') at++
@@ -224,6 +231,7 @@ private class Parser(private val text: String) {
         }
         val token = text.substring(start, at)
         if (!NUMBER.matches(token)) fail("bad number '$token'")
+        if (keepNumberText) return JsonNumber(token)
         if (whole) token.toLongOrNull()?.let { return it }
         return token.toDouble()
     }

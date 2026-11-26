@@ -56,9 +56,62 @@ class BuiltInTest {
     fun yamlQuotesWhatWouldBeMisread() {
         val yaml = Yaml.write(Json.parse("""{"name":"Ada","on":"yes","n":"42","list":[1,{"k":"a: b"}],"empty":[],"nothing":null}"""))
         assertEquals(
-            "name: Ada\n\"on\": \"yes\"\n\"n\": \"42\"\nlist:\n  - 1\n  -\n    k: \"a: b\"\nempty: []\nnothing: null\n",
+            "name: Ada\n\"on\": \"yes\"\n\"n\": \"42\"\nlist:\n  - 1\n  - k: \"a: b\"\nempty: []\nnothing: null\n",
             yaml,
         )
+    }
+
+    /** The cases every editor plugin runs (the same file in the VS Code, Sublime and Neovim ones). */
+    @Test
+    fun sharedDataCases() {
+        val text = javaClass.getResourceAsStream("/data-cases.json")!!.use { String(it.readAllBytes(), Charsets.UTF_8) }
+        val cases = Json.parse(text).asObject()!!["cases"].asArray()!!.map { it.asObject()!! }
+        var run = 0
+        for (case in cases) {
+            val from = case.string("from")!!
+            val to = case.string("to")!!
+            if (!DataConversions.supports(from, to)) continue
+            run++
+            val name = "$from to $to: ${case.string("name")}"
+            val input = case.string("input")!!
+            if (case["error"] == true) {
+                assertThrows(name, ConversionException::class.java) { DataConversions.convertText(input, from, to) }
+            } else {
+                assertEquals(name, case.string("output"), DataConversions.convertText(input, from, to))
+            }
+        }
+        assertEquals("every case of the four pairs", cases.size, run)
+    }
+
+    @Test
+    fun numbersKeepTheirText() {
+        val value = Json.parse("[9007199254740993, -0.10e+2, 12345678901234567890]", keepNumberText = true)
+        assertEquals(listOf(JsonNumber("9007199254740993"), JsonNumber("-0.10e+2"), JsonNumber("12345678901234567890")), value)
+        assertEquals("[9007199254740993,-0.10e+2,12345678901234567890]", Json.write(value))
+        // Read for the API, numbers stay Long and Double.
+        assertEquals(listOf(9007199254740993L, -10.0), Json.parse("[9007199254740993, -0.10e+2]"))
+    }
+
+    @Test
+    fun columnNamesAreAllDifferent() {
+        assertEquals(listOf("column2", "column2_2"), Csv.columnNames(listOf("column2"), 2))
+        assertEquals(listOf("id", "id_3", "id_2"), Csv.columnNames(listOf("id", "id", "id_2"), 3))
+        assertEquals(listOf("column1_2", "column1"), Csv.columnNames(listOf("", "column1"), 2))
+        assertEquals(';', Csv.separator("\r\na;b\n"))
+        assertEquals('|', Csv.separator("a|b,c|d\n"))
+        // A key "a.b" and a key "b" inside "a" are two columns.
+        val rows = DataConversions.table(Json.parse("[{\"a.b\":1,\"a\":{\"b\":2}},{\"a\":{\"b\":3}}]", keepNumberText = true))
+        assertEquals(listOf(listOf("a.b", "a.b_2"), listOf("1", "2"), listOf("", "3")), rows)
+    }
+
+    @Test
+    fun dataThatIsNotUtf8IsRefused() {
+        val csv = temp.newFile("latin1.csv").toPath()
+        Files.write(csv, byteArrayOf(0x63, 0x69, 0x74, 0x79, 0x0a, 0x4d, 0xfc.toByte(), 0x6e, 0x63, 0x68, 0x0a))
+        val error = assertThrows(ConversionException::class.java) {
+            DataConversions.convert(csv, temp.root.toPath().resolve("out.json"), "csv", "json")
+        }
+        assertTrue(error.message!!.contains("not UTF-8"))
     }
 
     @Test
